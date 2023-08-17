@@ -1,0 +1,16 @@
+---
+ssh:
+  banner: "Welcome to ContainerSSH!\n"
+  hostkeys:
+    - /var/secrets/ssh_host_rsa_key
+log:
+  level: debug
+auth:
+  url: "http://authconfig:8181/auth"
+backend: docker
+docker:
+  execution:
+    container:
+      image: alpine
+  connection:
+    host: unix:///var/run/docker.sock
