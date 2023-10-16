@@ -6,11 +6,24 @@ ssh:
 log:
   level: debug
 auth:
-  url: "http://authconfig:8181/auth"
+  url: "http://authconfig:8181/v0/data/containerssh/auth"
 backend: docker
 docker:
   execution:
     container:
-      image: alpine
+      image: containerssh/containerssh-guest-image
+    disableAgent: true
   connection:
     host: unix:///var/run/docker.sock
+# it's possible to watch a 40s delay asciinema with
+# tail -n +1 -f /tmp/logs/<log_file_name> | websocat -t -s 8080
+audit:
+  enable: true
+  format: asciinema
+  storage: file        # Where to write audit log. Defaults to none.
+  intercept:
+    stdin: true
+    stdout: true
+    stderr: true
+  file: 
+    directory: /var/log/containerssh

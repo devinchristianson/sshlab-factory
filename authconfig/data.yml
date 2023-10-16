@@ -1,0 +1,17 @@
+groups:
+  admin:
+    members:
+      - devinchristianson
+    environments:
+      - "*"
+    overrides:
+      admin: true
+  test:
+    members:
+      - joe
+    environments:
+      - test
+    overrides:
+environments:
+  test:
+    image: test
