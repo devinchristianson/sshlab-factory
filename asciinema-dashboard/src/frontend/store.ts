@@ -12,9 +12,13 @@ export const usePlayerStore = defineStore('player', {
     actions: {
         toggleFastForward() {
             this.fastforward = !this.fastforward
+            this.resetPlayers();
         },
         toggleIncludeExited() {
-            this.includeExited = !this.fastforward
+            this.includeExited = !this.includeExited
+            if (this.includeExited) {
+                this.fastforward=false
+            }
         },
         resetPlayers() {
             console.log("resetting all streams")

@@ -1,32 +1,32 @@
 <script setup lang="ts">
-  import Player from "./Player.vue"
-  import { getWebsocketLocation } from '../utils'
+  import Player from "./Player.vue";
+  import { getWebsocketLocation } from '../utils';
   import { ref } from "vue";
   import { serverMessageSchema, type clientMessage } from "../../types";
   import { usePlayerStore } from "../store";
-  const sessions = ref<string[]>([])
-  const store = usePlayerStore()
-  const ws = new WebSocket(getWebsocketLocation())
+  const sessions = ref<string[]>([]);
+  const store = usePlayerStore();
+  const ws = new WebSocket(getWebsocketLocation());
   ws.onopen = (e) => {
     ws.send(JSON.stringify({
       action: "start",
       options: store.$state
-    } as clientMessage))
+    } as clientMessage));
     store.$subscribe((_, state)=>{
       ws.send(JSON.stringify({
         action: "update",
         options: state
-      } as clientMessage))
-    })
+      } as clientMessage));
+    });
   }
   ws.onmessage = (e) => {
     const msg = serverMessageSchema.parse(JSON.parse(e.data));
     switch (msg.action) {
       case "start":
-          sessions.value.push(msg.name)
+          sessions.value.push(msg.name);
           break;
       case "end":
-          sessions.value.splice(sessions.value.indexOf(msg.name), 1)
+          sessions.value.splice(sessions.value.indexOf(msg.name), 1);
           break;
     }
   }

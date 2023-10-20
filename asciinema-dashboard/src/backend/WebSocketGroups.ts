@@ -23,27 +23,27 @@ export class WebSocketGroups {
         ws.on("close",() => {
           delete group[index]
         })
-        this.groups.set(route, group)
-        return index
+        this.groups.set(route, group);
+        return index;
       }
       return -1
     }
     updateClient(route: string, index: number, config: clientConfig) {
-      const client = this.groups.get(route)?.[index]
+      const client = this.groups.get(route)?.[index];
       if (client) {
-        client.config = config
+        client.config = config;
       }
     }
     send(route: string, where: Partial<clientConfig>, data: string | Buffer) {
       (this.groups.get(route) ?? []).forEach((client, index)=>{
-        if (client.ws.readyState == client.ws?.OPEN && wherConfig(where, client.config)) {
-          client.ws.send(data)
+        if (client.ws.readyState == client.ws?.OPEN && whereConfig(where, client.config)) {
+          client.ws.send(data);
         }
       }) 
     }
 }
 
-function wherConfig(where: Partial<clientConfig>, config: clientConfig | {}): boolean {
+function whereConfig(where: Partial<clientConfig>, config: clientConfig | {}): boolean {
     return Object.entries(where).reduce<boolean>((acc: boolean, [k,v])=>{
       return acc && v == config[k as keyof typeof config]
     },true)

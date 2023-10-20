@@ -7,7 +7,7 @@ import { Tail } from "tail";
 import dotenv from 'dotenv'
 import * as fs from "fs";
 import * as chokidar from "chokidar"
-import { clientMessageSchema, serverMessageSchema, type serverMessage } from '../types';
+import { clientMessageSchema, type serverMessage } from '../types';
 dotenv.config()
 
 const { app } = expressWs(express());
@@ -20,56 +20,56 @@ const files = {
   exited: new Set<string>(),
 };
 
-const logPath = process.env.SRC_LOG_DIR ?? "/tmp/logs"
+const logPath = process.env.SRC_LOG_DIR ?? "/tmp/logs";
 ///\rexit\r\n"]
-const endSequence = /[\\r\\n]exit\\r\\n"]/
+const endSequence = /[\\r\\n]exit\\r\\n"]/;
 
 const watcher = chokidar.watch(logPath, {
   ignored: /.accesstest/
-})
+});
 
 watcher.on("ready", () => {
   console.log(`⚡️[server]: Main file watcher is up and running!`);
 })
 
 watcher.on("add", (path) => {
-  const file = path.split("/").at(-1) ?? ""
+  const file = path.split("/").at(-1) ?? "";
   if (!endSequence.test(fs.readFileSync(path).toString().split('\n').at(-2) ?? "")) {
     const tail = new Tail(path);
     tail.on("line", (data: string)=>{
       
       // send to clients regardless
-      clients.send(`/${file}`, {}, data)
+      clients.send(`/${file}`, {}, data);
 
       // if session has exited
       if (endSequence.test(data)) {
-        console.log("session has ended!")
+        console.log("session has ended!");
         
         // remove from the list of active sessions
-        files.active.delete(file)
-        files.exited.add(file)
+        files.active.delete(file);
+        files.exited.add(file);
 
         // let clients know it's done
         clients.send("/", {includeExited: false}, JSON.stringify({
           action: "end",
           name: file
-        }))
+        }));
 
         // remove watcher
-        tail.unwatch()
+        tail.unwatch();
       }
     })
     tail.on("error", (err) => {
-      console.log(err)  
+      console.log(err); 
     })
-    files.active.add(file)
+    files.active.add(file);
     // let clients know a new session has started
     clients.send("/", {}, JSON.stringify({
       action: "start",
       name: file
-    }))
+    }));
   } else {
-    console.log(`Session in ${path} already ended, skipping`)
+    console.log(`Session in ${path} already ended, skipping`);
   }
 })
 
@@ -84,7 +84,7 @@ router.ws('/', (ws, req) => {
             action: "start",
             name: file,
             exited: false
-          } as serverMessage))
+          } as serverMessage));
         }
         if (msg.options?.includeExited) {
           for (const file of files.exited.keys()) {
@@ -92,7 +92,7 @@ router.ws('/', (ws, req) => {
               action: "start",
               name: file,
               exited: true
-            } as serverMessage))
+            } as serverMessage));
           }
         }
         break;
@@ -100,7 +100,7 @@ router.ws('/', (ws, req) => {
         if (index !=-1) {
           clients.updateClient("/", index, msg.options);
         } else {
-          console.error("client requested update failed due to lack of index")
+          console.error("client requested update failed due to lack of index");
         }
         break;
     }
@@ -113,22 +113,22 @@ const sendFile = (ws: WebSocket, file: string) => {
       const lines = fs.readFileSync(path.join(logPath, file)).toString().split('\n');
       for (const line of lines) {
         if (line) {
-          ws.send(line)
+          ws.send(line);
         }
       }
 }
 
 router.ws('/:file', (ws, req) => {
-  const params = new URLSearchParams(req.path.split("?").at(-1))
-  const file = req.params.file
+  const params = new URLSearchParams(req.path.split("?").at(-1));
+  const file = req.params.file;
   if (files.active.has(req.params.file)) {
     if (params.has("fastforward") && params.get("fastforward")) {
-      sendFile(ws, file)
+      sendFile(ws, file);
     }
-    clients.addClient(`/${req.params.file}`, ws)
+    clients.addClient(`/${req.params.file}`, ws);
   } else if (files.exited.has(req.params.file)) {
     // fast forward would skip exited sessions entirely, so we don't need to check it here
-    sendFile(ws, file)
+    sendFile(ws, file);
   }
 });
 
