@@ -39,9 +39,25 @@ auth.pubkey.success if {
         # check if pubkey is in list from github
         input.publicKey in split(github_keys.raw_body, "\n")
 }
+user_specific_config := {
+        "docker": {
+                "execution": {
+                        "container": {
+                                "env": [
+                                        concat(
+                                                "",
+                                                ["USERNAME=",username]
+                                        )
+                                ]
+                        }
+                }
+        }
+}
 
 # building a list of all overrides
-overrides := [config | config = object.filter(data.groups, groups)[_].overrides]
-
+overrides := [config_obj | config_obj = object.filter(data.groups, groups)[_].overrides]
 # merging all the configurations together, passing to the user
-auth.config.config := object.union(data.environments[environment], object.union_n(overrides))
+config.config := object.union_n([data.environments[environment], object.union_n(overrides),user_specific_config])
+config.metadata := input.metadata
+config.environment := input.environment
+config.files := input.files

@@ -4,8 +4,7 @@ groups:
       - devinchristianson
     environments:
       - "*"
-    overrides:
-      admin: true
+    overrides: {}
   test:
     members:
       - joe
@@ -13,5 +12,12 @@ groups:
       - test
     overrides:
 environments:
-  test:
-    image: test
+  test: {}
+  k3s:
+    docker:
+      execution:
+        container:
+          image: devinchristianson/k3dlab:latest
+        host:
+          binds:
+            - "/var/run/docker.sock:/var/run/docker.sock"

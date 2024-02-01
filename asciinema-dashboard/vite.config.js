@@ -10,7 +10,7 @@ export default defineConfig({
     vue(),
   ],
   build: {
-    outDir: "./dist/public"
+    outDir: "./dist/backend/public"
   },
   resolve: {
     alias: {

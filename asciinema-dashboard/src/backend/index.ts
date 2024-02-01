@@ -34,6 +34,12 @@ watcher.on("ready", () => {
 
 watcher.on("add", (path) => {
   const file = path.split("/").at(-1) ?? "";
+  let exited = false
+  const tailLastLine = new Tail(path, {nLines: 1})
+  tailLastLine.on("line", (data) =>{
+    exited = endSequence.test(data)
+  })
+  tailLastLine.unwatch()
   if (!endSequence.test(fs.readFileSync(path).toString().split('\n').at(-2) ?? "")) {
     const tail = new Tail(path);
     tail.on("line", (data: string)=>{

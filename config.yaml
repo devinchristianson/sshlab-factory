@@ -7,12 +7,14 @@ log:
   level: debug
 auth:
   url: "http://authconfig:8181/v0/data/containerssh/auth"
+configserver:
+  url: "http://authconfig:8181/v0/data/containerssh/config"
 backend: docker
 docker:
   execution:
     container:
       image: containerssh/containerssh-guest-image
-    disableAgent: true
+    disableAgent: false
   connection:
     host: unix:///var/run/docker.sock
 # it's possible to watch a 40s delay asciinema with

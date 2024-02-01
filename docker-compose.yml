@@ -4,8 +4,11 @@ services:
     build: ./authconfig
     volumes:
       - "./authconfig/data.yml:/config/data.yml"
+    ports: 
+      - 8181:8181
   dashboard:
     image: asciinema-dashboard
+    build: ./asciinema-dashboard
     environment:
       SRC_LOG_DIR: /tmp/logs
       PORT: 3000
