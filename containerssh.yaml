@@ -9,13 +9,13 @@ auth:
   password:
     method: webhook
     webhook:
-      url: http://authconfig:8181/v0/data/containerssh/auth
+      url: http://authconfig:8181/v0/data/authconfig/auth
   publicKey:
     method: webhook
     webhook:
-      url: http://authconfig:8181/v0/data/containerssh/auth
+      url: http://authconfig:8181/v0/data/authconfig/auth
 configserver:
-  url: "http://authconfig:8181/v0/data/containerssh/config"
+  url: "http://authconfig:8181/v0/data/authconfig/config"
 backend: docker
 docker:
   execution:
