@@ -1,9 +1,10 @@
 version: "3.8"
 services:
   authconfig:
+    image: authconfig
     build: ./authconfig
     volumes:
-      - "./authconfig/data.yml:/config/data.yml"
+      - "./authconfig.yml:/config/data.yml"
     ports: 
       - 8181:8181
   dashboard:
@@ -17,12 +18,12 @@ services:
     ports: 
       - 3000:3000
   containerssh:
-    # need to use the alpha because it's the only version that supports newer host keys than rsa-sha1
-    image: containerssh/containerssh:0.5.0-alpha.1
+    # need to use the alpha because their docker builds are messed up :(
+    image: containerssh/containerssh:0.5.0-alpha.1-20240107
     ports:
       - 127.0.0.1:2222:2222
     volumes:
-    - ./config.yaml:/etc/containerssh/config.yaml
+    - ./containerssh.yaml:/etc/containerssh/config.yaml
     - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
     - /var/run/docker.sock:/var/run/docker.sock
     - logs:/var/log/containerssh

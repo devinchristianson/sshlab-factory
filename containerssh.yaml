@@ -6,7 +6,14 @@ ssh:
 log:
   level: debug
 auth:
-  url: "http://authconfig:8181/v0/data/containerssh/auth"
+  password:
+    method: webhook
+    webhook:
+      url: http://authconfig:8181/v0/data/containerssh/auth
+  publicKey:
+    method: webhook
+    webhook:
+      url: http://authconfig:8181/v0/data/containerssh/auth
 configserver:
   url: "http://authconfig:8181/v0/data/containerssh/config"
 backend: docker
@@ -15,6 +22,9 @@ docker:
     container:
       image: containerssh/containerssh-guest-image
     disableAgent: false
+    shellCommand: 
+      - "/bin/bash"
+      - "-l"
   connection:
     host: unix:///var/run/docker.sock
 # it's possible to watch a 40s delay asciinema with

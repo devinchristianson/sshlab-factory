@@ -1,0 +1,26 @@
+groups:
+  admin:
+    members:
+      - devinchristianson
+    environments:
+      - "*"
+    overrides: {} # this line is very important for now - also, overrides have a bunch of annoying gotchas
+  test:
+    members:
+      - umcst
+    environments:
+      - test
+      - k3s
+    overrides: {} # this line is very important for now - also, overrides have a bunch of annoying gotchas
+environments:
+  test: {}
+  k3s:
+    docker:
+      execution:
+        container:
+          image: devinchristianson/k3dlab:2.3
+          env:
+            - DOMAIN=localhost
+        host:
+          binds:
+            - "/var/run/docker.sock:/var/run/docker.sock"
