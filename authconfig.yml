@@ -18,12 +18,9 @@ environments:
     docker:
       execution:
         container:
-          image: devinchristianson/k3dlab:2.3
+          image: devinchristianson/k3dlab:2.4
           env:
             - DOMAIN=localhost
-        network:
-          endpoints:
-            - k3d-demo_infra_default
         host:
           binds:
             - "/var/run/docker.sock:/var/run/docker.sock"
