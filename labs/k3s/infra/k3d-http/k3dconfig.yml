@@ -1,0 +1,63 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: {{ .username }}
+servers: 1
+image: rancher/k3s:v1.29.1-k3s2
+network: ssh-lab-factory_k3s
+kubeAPI: # same as `--api-port myhost.my.domain:6445` (where the name would resolve to 127.0.0.1)
+  host: "k3d-{{ .username }}-server-0:6443" # important for the `server` setting in the kubeconfig
+  hostIP: "127.0.0.1" # where the Kubernetes API will be listening on
+options:
+  k3d:
+    disableRollback: true
+  runtime:
+    labels:
+      - label: traefik.enable=true
+        nodeFilters:
+          - server:0
+      # proxy HTTP requests
+      - label: traefik.http.routers.{{ .username }}-web.rule=HostRegexp(`{subdomain:([a-z-]+.)*}{{ .username }}.{{ .domain }}`)
+        nodeFilters:
+          - server:0
+      - label: traefik.http.routers.{{ .username }}-web.entrypoints=web
+        nodeFilters:
+          - server:0
+      - label: traefik.http.services.{{ .username }}-web.loadbalancer.server.port=80
+        nodeFilters:
+          - server:0
+      - label: traefik.http.routers.{{ .username }}-web.service={{ .username }}-web
+        nodeFilters:
+          - server:0
+      # pass through HTTPS requests
+      - label: traefik.tcp.routers.{{ .username }}-websecure.rule=HostSNIRegexp(`{subdomain:([a-z-]+.)*}{{ .username }}.{{ .domain }}`)
+        nodeFilters:
+          - server:0
+      - label: traefik.tcp.routers.{{ .username }}-websecure.entrypoints=websecure
+        nodeFilters:
+          - server:0
+      - label: traefik.tcp.services.{{ .username }}-websecure.loadbalancer.server.port=443
+        nodeFilters:
+          - server:0
+      - label: traefik.tcp.routers.{{ .username }}-websecure.service={{ .username }}-websecure
+        nodeFilters:
+          - server:0
+      # route root subdomain to kubeapy
+      - label: traefik.enable=true
+        nodeFilters:
+          - loadbalancer
+      - label: traefik.tcp.routers.{{ .username }}-api.rule=HostSNI(`{{ .username }}.{{ .domain }}`)
+        nodeFilters:
+          - loadbalancer
+      - label: traefik.tcp.routers.{{ .username }}-api.entrypoints=kubeapi
+        nodeFilters:
+          - loadbalancer
+      - label: traefik.tcp.routers.{{ .username }}-api.tls.passthrough=true
+        nodeFilters:
+          - loadbalancer
+      - label: traefik.tcp.services.{{ .username }}-api.loadbalancer.server.port=6443
+        nodeFilters:
+          - loadbalancer
+      - label: traefik.tcp.routers.{{ .username }}-api.service={{ .username }}-api
+        nodeFilters:
+          - loadbalancer

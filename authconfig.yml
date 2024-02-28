@@ -15,12 +15,18 @@ groups:
 environments:
   test: {}
   k3s:
-    docker:
-      execution:
-        container:
-          image: devinchristianson/k3dlab:2.4
-          env:
-            - DOMAIN=localhost
-        host:
-          binds:
-            - "/var/run/docker.sock:/var/run/docker.sock"
+    config:
+      docker:
+        execution:
+          container:
+            image: devinchristianson/k3dlab:4.1.0
+            env:
+              - DOMAIN=localhost
+          network:
+            endpointsconfig:
+              ssh-lab-factory_k3s: {} # start in the same network as the cluster
+    webhooks:
+      initialization: http://k3d-http:8090/$username/cluster/ensurerunning
+      cleanup: http://k3d-http:8090/$username/cluster/stop
+      files: 
+        /home/lab/.kube/config: http://k3d-http:8090/$username/cluster/config

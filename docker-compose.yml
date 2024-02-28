@@ -4,9 +4,21 @@ services:
     image: authconfig
     build: ./authconfig
     volumes:
-      - "./authconfig.yml:/config/data.yml"
+      - "./authconfig.yml:/config.yml"
     ports: 
-      - 8181:8181
+      - 7080:7080
+    environment:
+      REDIS_PASS: "${REDIS_PASS}"
+      JWT_SECRET: "${JWT_SECRET}"
+    networks:
+      - internal
+  redis:
+    image: redis
+    command: redis-server --save "" --appendonly no --requirepass ${REDIS_PASS}
+    networks:
+      - internal
+    ports: 
+      - 6379:6379
   dashboard:
     image: asciinema-dashboard
     build: ./asciinema-dashboard
@@ -17,17 +29,25 @@ services:
       - logs:/tmp/logs
     ports: 
       - 3000:3000
+    networks:
+      - internal
   containerssh:
     # need to use the alpha because their docker builds are messed up :(
-    image: containerssh/containerssh:0.5.0-alpha.1-20240107
+    image: devinchristianson/containerssh:0.5.1 #containerssh/containerssh:0.5.0-alpha.1-20240107
     ports:
       - 2222:2222
+      - 7000:7000
     volumes:
     - ./containerssh.yaml:/etc/containerssh/config.yaml
     - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
     - /var/run/docker.sock:/var/run/docker.sock
     - logs:/var/log/containerssh
     user: "root"
+    networks:
+      - internal
 volumes:
   logs: {}
+networks:
+  internal: 
+  k3s:
     

@@ -1,0 +1,5 @@
+go 1.22.0
+
+use ./labs/k3s/infra/k3d-http
+
+use ./authconfig

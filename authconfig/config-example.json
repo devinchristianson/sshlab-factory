@@ -1,0 +1,7 @@
+{
+    "remoteAddress": "172.21.0.1:53396",
+    "connectionId": "a7306ea448b44ca3bc788f4c78956458",
+    "clientVersion": "SSH-2.0-OpenSSH_9.6",
+    "username": "devinchristianson/k3s",
+    "authenticatedUsername": "devinchristianson/k3s"
+}

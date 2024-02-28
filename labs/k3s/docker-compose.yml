@@ -1,0 +1,86 @@
+# docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock --env USERNAME=devinchristianson --env DOMAIN=localhost --env DEV=1 --net host docker.io/devinchristianson/k3dlab:v1.8 bash -l
+version: "3.9"
+
+services:
+  # docker-compose run -it --build labcontainer
+  k3s-lab:
+    build: 
+      context: labs/k3s/infra/lab-container
+      additional_contexts:
+        lab: labs/k3s/lab
+    image: devinchristianson/k3dlab:4.1.0
+    environment:
+      - USERNAME=testuser
+      - ENVIRONMENT=k3s
+      - DOMAIN=localhost
+      - DEV=1
+    networks:
+      - k3s
+    stop_grace_period: 20s
+    profiles:
+      - donotstart
+  k3d-http:
+    build: 
+      context: labs/k3s/infra/k3d-http
+    environment:
+      - DOMAIN=${DOMAIN}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+      - k3s
+    ports:
+      - "8090:8090"
+  traefik:
+    image: "traefik:v2.10"
+    command:
+      #- "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.kubeapi.address=:6443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "6443:6443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - k3s
+  whoami:
+    image: "traefik/whoami"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=HostRegexp(`whoami.localhost`, `{subdomain:[a-z]+}.whoami.localhost`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+    networks:
+      - k3s
+  error-pages:
+    image: tarampampam/error-pages:2.26.0
+    environment:
+      TEMPLATE_NAME: l7-dark # set the error pages template
+    labels:
+      traefik.enable: true
+      # use as "fallback" for any NON-registered services (with priority below normal)
+      traefik.http.routers.error-pages-router.rule: HostRegexp(`{host:.+}`)
+      traefik.http.routers.error-pages-router.priority: 10
+      # should say that all of your services work on https
+      traefik.http.routers.error-pages-router.entrypoints: web
+      traefik.http.routers.error-pages-router.middlewares: error-pages-middleware
+      # "errors" middleware settings
+      traefik.http.middlewares.error-pages-middleware.errors.status: 400-599
+      traefik.http.middlewares.error-pages-middleware.errors.service: error-pages-service
+      traefik.http.middlewares.error-pages-middleware.errors.query: /{status}.html
+      # define service properties
+      traefik.http.services.error-pages-service.loadbalancer.server.port: 8080
+    depends_on:
+      - traefik
+    networks:
+      - k3s
+networks:
+  k3s:
+  internal:

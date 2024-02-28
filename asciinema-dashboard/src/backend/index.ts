@@ -8,6 +8,7 @@ import dotenv from 'dotenv'
 import * as fs from "fs";
 import * as chokidar from "chokidar"
 import { clientMessageSchema, type serverMessage } from '../types';
+import { Server, IncomingMessage, ServerResponse } from 'http';
 dotenv.config()
 
 const { app } = expressWs(express());
@@ -22,7 +23,7 @@ const files = {
 
 const logPath = process.env.SRC_LOG_DIR ?? "/tmp/logs";
 ///\rexit\r\n"]
-const endSequence = /[\\r\\n]exit\\r\\n"]/;
+const endSequence = /\\r\\n(exit)|(logout)\\r\\n/;
 
 const watcher = chokidar.watch(logPath, {
   ignored: /.accesstest/
@@ -35,12 +36,10 @@ watcher.on("ready", () => {
 watcher.on("add", (path) => {
   const file = path.split("/").at(-1) ?? "";
   let exited = false
-  const tailLastLine = new Tail(path, {nLines: 1})
-  tailLastLine.on("line", (data) =>{
-    exited = endSequence.test(data)
+  fs.readFileSync(path).toString().split('\n').forEach((l)=>{
+    exited = exited && endSequence.test(l)
   })
-  tailLastLine.unwatch()
-  if (!endSequence.test(fs.readFileSync(path).toString().split('\n').at(-2) ?? "")) {
+  if (!exited) {
     const tail = new Tail(path);
     tail.on("line", (data: string)=>{
       
@@ -142,6 +141,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use("/ws", router);
 
 const port = process.env.PORT ?? "3001";
-app.listen(port, () => {
+let server:Server<typeof IncomingMessage, typeof ServerResponse>;
+const shutdownHandler = () => {
+  server.close(()=>{
+    console.log(`⚡️[server]: Server is has stopped accepting connections`);
+  });
+  console.log(`⚡️[server]: Closing all connections`);
+  server.closeAllConnections();
+  console.log(`⚡️[server]: Shutting down.`);
+}
+process.on('SIGTERM', shutdownHandler)
+process.on('SIGINT', shutdownHandler)
+server = app.listen(port, () => {
   console.log(`⚡️[server]: Server is running at http://localhost:${port}`);
 });

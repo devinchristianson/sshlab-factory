@@ -1,0 +1,18 @@
+postgresql:
+  password: {{ default_app_password }}
+  database: postgres 
+  repmgrPassword: {{ default_app_password }}
+  postgresql.maxConnections: 100
+  initdbScripts:
+    init.sql: |
+      CREATE USER gitlab WITH ENCRYPTED PASSWORD '{{ default_app_password }}';
+      CREATE DATABASE gitlab OWNER gitlab;
+      CREATE USER semui WITH ENCRYPTED PASSWORD '{{ default_app_password }}';
+      CREATE DATABASE semui OWNER semui;
+pgpool:
+  replicaCount: 2
+  adminUsername: postgres
+  adminPassword: {{ default_app_password }}
+  customUsers:
+    usernames: "gitlab,semui"
+    passwords: "{{ default_app_password }},{{ default_app_password }}"

@@ -1,30 +1,34 @@
 ---
 ssh:
-  banner: "Welcome to ContainerSSH!\n"
+  banner: "Welcome to the ssh-lab-factory!\nPlease wait while your lab loads...\n"
   hostkeys:
     - /var/secrets/ssh_host_rsa_key
+security:
+  forwarding:
+    reverseForwardingMode: enable
+    forwardingMode: enable
+    socketForwardingMode: enable
+    socketListenMode: enable
+    x11ForwardingMode: enable
 log:
   level: debug
 auth:
-  password:
-    method: webhook
-    webhook:
-      url: http://authconfig:8181/v0/data/authconfig/auth
   publicKey:
     method: webhook
     webhook:
-      url: http://authconfig:8181/v0/data/authconfig/auth
+      url: http://authconfig:7080/auth
 configserver:
-  url: "http://authconfig:8181/v0/data/authconfig/config"
+  url: "http://authconfig:7080/config"
+  timeout: "30s"
+cleanupserver: 
+  url: "http://authconfig:7080/cleanup"
+  timeout: "30s"
 backend: docker
 docker:
   execution:
     container:
       image: containerssh/containerssh-guest-image
     disableAgent: false
-    shellCommand: 
-      - "/bin/bash"
-      - "-l"
   connection:
     host: unix:///var/run/docker.sock
 # it's possible to watch a 40s delay asciinema with

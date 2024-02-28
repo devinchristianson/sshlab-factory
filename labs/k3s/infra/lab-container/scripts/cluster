@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+k3d() {
+    curl -s -H "Authorization: Bearer $JWT" -X GET http://k3d-http:8090/$USERNAME/cluster/$1
+}
+
+ensure_config() {
+    if [[ -f ~/.kube/config ]]; then 
+        k3d config > ~/.kube/config
+    fi
+}
+
+case "$1" in
+    start)
+        # ensure it's created 
+        k3d ensurerunning | jq .message
+        ensure_config
+        ;;
+    stop)
+        k3d stop | jq .message
+        ;;
+    create)
+        k3d ensurerunning | jq .message
+        ensure_config
+        ;;
+    delete)
+        k3d delete | jq .message
+        echo "Server is deleted"
+        ;;
+    status)
+        k3d status
+        ;;
+    cleanup)
+        if [[ -n "${DEV}" ]]; then 
+            k3d delete | jq .message
+        else
+            k3d stop | jq .message
+        fi
+        ;;
+    *)
+        echo "cluster (status|start|stop|create|delete)"
+        ;;
+esac
