@@ -12,6 +12,24 @@ If the user is on the allowlist for the requested environment and the provided k
 
 
 ## Implementation
-The auth/config webhook service is built using [Open Policy Agent](https://www.openpolicyagent.org/) - see Rego in `authconfig/opa`, as this provides a fairly concise way to specify the desired webhook behavior.
 
-The docker-compose file in the root is purely for testing at the moment
+
+## Quickstart
+
+### Pre-reqs:
+#### Host requirements:
+- Docker
+- Docker compose plugin
+- (optional) sysbox
+
+#### Supporting infra:
+- (optional) publically exposed port 80
+- (optional) public domain/subdomain pointed at host
+- lab participants need access to ports 2222,80,443
+
+### Setup
+- Copy env.example to `.env` and update the values
+- Updated `authconfig.yml` groups to include the expected lab members Github usernames
+- Build lab clients with `docker compose --profile lab-client build`
+- Build other required containers `docker compose build`
+- Bring up the stack with `docker compose up`

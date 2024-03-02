@@ -1,7 +1,18 @@
 version: "3.8"
+
+include: 
+  - path: labs/k3s/docker-compose.yml
+  - path: labs/ubuntu/docker-compose.yml
+
+x-infra-defaults: &infra-defaults
+  networks:
+    - internal
+  profiles:
+    - infra
+
 services:
   authconfig:
-    image: authconfig
+    <<: *infra-defaults
     build: ./authconfig
     volumes:
       - "./authconfig.yml:/config.yml"
@@ -10,41 +21,46 @@ services:
     environment:
       REDIS_PASS: "${REDIS_PASS}"
       JWT_SECRET: "${JWT_SECRET}"
-    networks:
-      - internal
+    depends_on: 
+      redis: 
+        condition: service_started
+      k3d-http:
+        condition: service_started
+        required: false # because it's in a seperate profile
   redis:
+    <<: *infra-defaults
     image: redis
     command: redis-server --save "" --appendonly no --requirepass ${REDIS_PASS}
-    networks:
-      - internal
     ports: 
       - 6379:6379
   dashboard:
-    image: asciinema-dashboard
+    <<: *infra-defaults
     build: ./asciinema-dashboard
     environment:
+      AUTH_GITHUB_ID: "${AUTH_GITHUB_ID}"
+      AUTH_GITHUB_SECRET: "${AUTH_GITHUB_SECRET}"
+      JWT_SECRET: "${JWT_SECRET}"
       SRC_LOG_DIR: /tmp/logs
       PORT: 3000
     volumes: 
       - logs:/tmp/logs
     ports: 
       - 3000:3000
-    networks:
-      - internal
   containerssh:
+    <<: *infra-defaults
     # need to use the alpha because their docker builds are messed up :(
     image: devinchristianson/containerssh:0.5.1 #containerssh/containerssh:0.5.0-alpha.1-20240107
     ports:
       - 2222:2222
       - 7000:7000
     volumes:
-    - ./containerssh.yaml:/etc/containerssh/config.yaml
-    - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
-    - /var/run/docker.sock:/var/run/docker.sock
-    - logs:/var/log/containerssh
+      - ./containerssh.yaml:/etc/containerssh/config.yaml
+      - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
+      - /var/run/docker.sock:/var/run/docker.sock
+      - logs:/var/log/containerssh
     user: "root"
-    networks:
-      - internal
+    depends_on: 
+      - authconfig
 volumes:
   logs: {}
 networks:

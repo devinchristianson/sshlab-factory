@@ -7,7 +7,7 @@ COPY --from=agent /usr/bin/containerssh-agent /usr/bin/containerssh-agent
 
 # add pre-reqs for required installs
 RUN DEBIAN_FRONTEND=noninteractive apt update \
-    && apt install -y curl bash jq git net-tools vim tmux bash-completion wget \
+    && apt install -y curl bash jq git net-tools vim tmux bash-completion wget sudo \
     && apt clean
 
 # download and install kubectl
@@ -29,16 +29,21 @@ RUN set -e && cd "$(mktemp -d)" && VERSION="$(curl -L -s https://get.helm.sh/hel
 RUN helm plugin install https://github.com/databus23/helm-diff && rm -rf /tmp/helm-*
 RUN rm -r /tmp/*
 
-# copy over k3d config file
-COPY ./k3dconfig.yml /etc/k3dconfig.yml
+
+# download and install k9s
+RUN set -e && cd "$(mktemp -d)" && VERSION="$(wget https://github.com/derailed/k9s/releases/latest --server-response -O /dev/null 2>&1 | awk '/^\s*Location: /{DEST=$2} END{ print DEST}' | grep -oE '[^/]+$')" \
+    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_amd64.tar.gz \
+    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/checksums.sha256 \
+    && echo "$(cat checksums.sha256 | grep k9s_Linux_amd64.tar.gz$ | awk '{ print $1 }') k9s_Linux_amd64.tar.gz" | sha256sum -c \
+    && tar -zxvf "k9s_Linux_amd64.tar.gz" \
+    && install -o root -g root -m 0755 k9s /usr/local/bin/k9s
 
 # copy over scripts + make executable
 COPY ./scripts/. /usr/local/bin/
 RUN chmod +x /usr/local/bin/*
 
-RUN adduser --uid 832 --shell /bin/bash --disabled-password lab
-# allow apk usage by non-root users
-RUN chmod u+s "$(which apt)" "$(which apt-key)"
+RUN adduser --uid 832 --shell /bin/bash --disabled-password lab \
+    && echo "lab ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/lab
 
 USER lab
 
@@ -48,7 +53,8 @@ RUN set -x; cd "$(mktemp -d)" \
     && KREW="krew-${OS}_${ARCH}" \
     && curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" \
     && tar zxvf "${KREW}.tar.gz" \
-    && ./"${KREW}" install krew
+    && ./"${KREW}" install krew \
+    && PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH" kubectl krew install ns ctx tail
 
 WORKDIR /home/lab
 

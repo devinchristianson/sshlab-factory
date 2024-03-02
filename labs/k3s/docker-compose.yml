@@ -1,27 +1,27 @@
-# docker run -it --rm -v /var/run/docker.sock:/var/run/docker.sock --env USERNAME=devinchristianson --env DOMAIN=localhost --env DEV=1 --net host docker.io/devinchristianson/k3dlab:v1.8 bash -l
 version: "3.9"
 
 services:
-  # docker-compose run -it --build labcontainer
+  # only here for building/testing purposes
   k3s-lab:
+    profiles:
+      - lab-client
+    networks:
+      - k3s
     build: 
-      context: labs/k3s/infra/lab-container
+      context: infra/lab-container
       additional_contexts:
-        lab: labs/k3s/lab
-    image: devinchristianson/k3dlab:4.1.0
+        lab: lab
+    image: devinchristianson/k3dlab:4.2.0
+    user: root
     environment:
       - USERNAME=testuser
       - ENVIRONMENT=k3s
       - DOMAIN=localhost
-      - DEV=1
-    networks:
-      - k3s
-    stop_grace_period: 20s
-    profiles:
-      - donotstart
   k3d-http:
+    profiles:
+      - k3s
     build: 
-      context: labs/k3s/infra/k3d-http
+      context: infra/k3d-http
     environment:
       - DOMAIN=${DOMAIN}
       - JWT_SECRET=${JWT_SECRET}
@@ -30,9 +30,9 @@ services:
     networks:
       - internal
       - k3s
-    ports:
-      - "8090:8090"
   traefik:
+    profiles:
+      - k3s
     image: "traefik:v2.10"
     command:
       #- "--log.level=DEBUG"
@@ -51,7 +51,12 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
     networks:
       - k3s
+    depends_on:
+      - whoami
+      - error-pages
   whoami:
+    profiles:
+      - k3s
     image: "traefik/whoami"
     labels:
       - "traefik.enable=true"
@@ -60,6 +65,8 @@ services:
     networks:
       - k3s
   error-pages:
+    profiles:
+      - k3s
     image: tarampampam/error-pages:2.26.0
     environment:
       TEMPLATE_NAME: l7-dark # set the error pages template
@@ -77,8 +84,6 @@ services:
       traefik.http.middlewares.error-pages-middleware.errors.query: /{status}.html
       # define service properties
       traefik.http.services.error-pages-service.loadbalancer.server.port: 8080
-    depends_on:
-      - traefik
     networks:
       - k3s
 networks:

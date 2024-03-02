@@ -9,8 +9,6 @@ kubeAPI: # same as `--api-port myhost.my.domain:6445` (where the name would reso
   host: "k3d-{{ .username }}-server-0:6443" # important for the `server` setting in the kubeconfig
   hostIP: "127.0.0.1" # where the Kubernetes API will be listening on
 options:
-  k3d:
-    disableRollback: true
   runtime:
     labels:
       - label: traefik.enable=true
@@ -42,7 +40,7 @@ options:
       - label: traefik.tcp.routers.{{ .username }}-websecure.service={{ .username }}-websecure
         nodeFilters:
           - server:0
-      # route root subdomain to kubeapy
+      # route root subdomain to kubeapi
       - label: traefik.enable=true
         nodeFilters:
           - loadbalancer
