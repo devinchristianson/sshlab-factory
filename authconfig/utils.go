@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"go.containerssh.io/libcontainerssh/metadata"
@@ -22,4 +23,10 @@ func ConvertValuesToBinaryValues(input map[string]metadata.Value) map[string]met
 		}
 	}
 	return output
+}
+
+var escapeRegex = regexp.MustCompile(`[^a-zA-Z0-9\-_]+`) //0 to 9, A to Z, a to z, and the _ and -
+
+func EscapeUsername(username string) string {
+	return escapeRegex.ReplaceAllString(strings.Split(username, "@")[0], "")
 }

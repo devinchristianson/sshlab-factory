@@ -5,6 +5,8 @@
 
 
 <template>
-    <ToolBar/>
-    <Grid/>
+    <div class="min-h-full flex flex-col bg-gray-800">
+      <ToolBar/>
+      <Grid/>
+    </div>
 </template>

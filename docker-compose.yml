@@ -40,6 +40,7 @@ services:
       AUTH_GITHUB_ID: "${AUTH_GITHUB_ID}"
       AUTH_GITHUB_SECRET: "${AUTH_GITHUB_SECRET}"
       JWT_SECRET: "${JWT_SECRET}"
+      AUTH_SECRET: "${AUTH_SECRET}"
       SRC_LOG_DIR: /tmp/logs
       PORT: 3000
     volumes: 
@@ -48,13 +49,14 @@ services:
       - 3000:3000
   containerssh:
     <<: *infra-defaults
-    # need to use the alpha because their docker builds are messed up :(
+    build: ./containerssh
     image: devinchristianson/containerssh:0.5.1 #containerssh/containerssh:0.5.0-alpha.1-20240107
     ports:
       - 2222:2222
       - 7000:7000
     volumes:
-      - ./containerssh.yaml:/etc/containerssh/config.yaml
+      - asciinema-socket:/var/run/asciinema/
+      - ./containerssh.yaml:/config.yaml
       - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
       - /var/run/docker.sock:/var/run/docker.sock
       - logs:/var/log/containerssh

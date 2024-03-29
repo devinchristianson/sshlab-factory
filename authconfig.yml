@@ -2,6 +2,7 @@ groups:
   admin:
     members:
       - devinchristianson
+      - devin.a.christianson@gmail.com
     environments:
       - "*"
     overrides: {} # this line is very important for now - also, overrides have a bunch of annoying gotchas
@@ -13,13 +14,18 @@ groups:
       - k3s
     overrides: {} # this line is very important for now - also, overrides have a bunch of annoying gotchas
 environments:
-  test: {}
+  ubuntu:
+    config:
+      docker:
+        execution:
+          container:
+            image: ssh-lab-factory-ubuntu-lab
   k3s:
     config:
       docker:
         execution:
           container:
-            image: devinchristianson/k3dlab:4.1.0
+            image: devinchristianson/k3dlab:4.2.0
             env:
               - DOMAIN=localhost
           network:

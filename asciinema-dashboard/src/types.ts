@@ -30,3 +30,10 @@ export const clientMessageSchema = z.discriminatedUnion("action", [
     }),
 ]);
 export type clientMessage = z.infer<typeof clientMessageSchema>
+
+export const toptMessageSchema = z.object({
+    otp: z.string(),
+    expires: z.number()
+})
+
+export type toptMessage = z.infer<typeof toptMessageSchema>

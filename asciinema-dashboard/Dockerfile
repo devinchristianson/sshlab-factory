@@ -17,17 +17,16 @@ RUN apk add --no-cache gcc musl-dev
 
 # set workdir to something reasonable
 WORKDIR /home/node/
+COPY package*.json .
+# running install & build
+RUN npm ci
 
 # copying in source files
 COPY . .
-
-# running install & build
-RUN npm ci
 RUN npm run build
 
 # minify node_modules
 RUN npm prune --production
-
 
 FROM node:lts-alpine as prod
 
@@ -36,8 +35,8 @@ WORKDIR /home/node/
 
 # move everything over to a clean image
 COPY --from=builder /home/node/dist/ .
-# move everything over to a clean image
 COPY --from=builder /home/node/node_modules/ ./node_modules
+COPY --from=builder /home/node/package.json .
 
 ENV NODE_ENV=production
 EXPOSE 3001

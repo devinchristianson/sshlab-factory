@@ -1,26 +1,34 @@
 package main
 
 import (
+	"context"
+	"encoding/base32"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/pquerna/otp"
+	"github.com/pquerna/otp/totp"
 	"go.containerssh.io/libcontainerssh/auth"
 	"go.containerssh.io/libcontainerssh/config"
 	"go.containerssh.io/libcontainerssh/metadata"
 )
 
-func ErrorHandler(w http.ResponseWriter, status int, message string) {
+func ErrorHandler(ctx context.Context, w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	data, _ := json.Marshal(map[string]interface{}{
 		"message": message,
 	})
+	slog.ErrorContext(ctx, message)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
 }
@@ -28,12 +36,68 @@ func ErrorHandler(w http.ResponseWriter, status int, message string) {
 func main() {
 	runtime := Load()
 	mux := http.NewServeMux()
+	mux.HandleFunc("/auth/password", func(w http.ResponseWriter, r *http.Request) {
+		decoder := json.NewDecoder(r.Body)
+		var req auth.PasswordAuthRequest
+		err := decoder.Decode(&req)
+		if err != nil {
+			ErrorHandler(r.Context(), w, 500, err.Error())
+			return
+		}
+		username, environment := SplitUsername(req.Username)
+		slog.InfoContext(r.Context(), fmt.Sprintf("User %s is attempting login to %s with password %s", username, environment, req.Password))
+		groups := runtime.config.GetUserGroups(username)
+		slog.DebugContext(r.Context(), fmt.Sprintf("User %s is in groups %s", username, groups))
+		// if user is in a group and some group matches the selected environment
+		if len(groups) > 0 && runtime.config.IsUserAllowedInEnv(username, environment) {
+			code, err := base64.StdEncoding.DecodeString(req.Password)
+			slog.InfoContext(r.Context(), string(code))
+			if err != nil {
+				slog.ErrorContext(r.Context(), "Failed to decode base64: "+err.Error())
+			}
+			key := base32.StdEncoding.EncodeToString([]byte(username + runtime.jwt.key))
+			slog.DebugContext(r.Context(), fmt.Sprint(time.Now().UnixMilli()))
+			totpResult, err := totp.ValidateCustom(string(code), key, time.Now(), totp.ValidateOpts{
+				Algorithm: otp.AlgorithmSHA256,
+				Digits:    otp.DigitsSix,
+			})
+			if err != nil {
+				slog.ErrorContext(r.Context(), "TOTP validate failed with: "+err.Error())
+			} else if totpResult {
+				runtime.RegisterConnection(r.Context(), req.Username, req.ConnectionID)
+				resp, err := json.Marshal(auth.ResponseBody{
+					ConnectionAuthenticatedMetadata: metadata.ConnectionAuthenticatedMetadata{
+						AuthenticatedUsername:         req.Username,
+						ConnectionAuthPendingMetadata: req.ConnectionAuthPendingMetadata,
+					},
+					Success: true,
+				})
+				if err != nil {
+					ErrorHandler(r.Context(), w, 500, err.Error())
+					return
+				}
+				w.Write(resp)
+				w.Header().Set("Content-Type", "application/json")
+			}
+		}
+		resp, err := json.Marshal(auth.ResponseBody{
+			ConnectionAuthenticatedMetadata: metadata.ConnectionAuthenticatedMetadata{
+				ConnectionAuthPendingMetadata: req.ConnectionAuthPendingMetadata,
+			},
+			Success: false,
+		})
+		if err != nil {
+			ErrorHandler(r.Context(), w, 500, err.Error())
+		}
+		w.Write(resp)
+		w.Header().Set("Content-Type", "application/json")
+	})
 	mux.HandleFunc("/auth/pubkey", func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 		var req auth.PublicKeyAuthRequest
 		err := decoder.Decode(&req)
 		if err != nil {
-			ErrorHandler(w, 500, err.Error())
+			ErrorHandler(r.Context(), w, 500, err.Error())
 			return
 		}
 		username, environment := SplitUsername(req.Username)
@@ -46,12 +110,12 @@ func main() {
 			// pull github keys for user
 			keysResp, err := http.Get(fmt.Sprintf("http://github.com/%s.keys", username))
 			if err != nil {
-				ErrorHandler(w, 500, err.Error())
+				ErrorHandler(r.Context(), w, 500, err.Error())
 				return
 			}
 			keysRespBytes, err := io.ReadAll(keysResp.Body)
 			if err != nil {
-				ErrorHandler(w, 500, err.Error())
+				ErrorHandler(r.Context(), w, 500, err.Error())
 				return
 			}
 			keys := string(keysRespBytes)
@@ -59,14 +123,7 @@ func main() {
 			slog.DebugContext(r.Context(), fmt.Sprintf("Got keys %s for user %s", keys, username))
 			if strings.Contains(keys, req.PublicKey.PublicKey) {
 				slog.DebugContext(r.Context(), fmt.Sprintf("User %s key matches", username))
-				err := runtime.redis.Set(r.Context(), "connectionId:"+req.ConnectionID, req.Username, 0).Err()
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Error setting connectionId->username in redis: "+err.Error())
-				}
-				err = runtime.redis.RPush(r.Context(), "user:"+req.Username, req.ConnectionID).Err()
-				if err != nil {
-					slog.ErrorContext(r.Context(), "Error adding username->connectionId in redis: "+err.Error())
-				}
+				runtime.RegisterConnection(r.Context(), req.Username, req.ConnectionID)
 				resp, err := json.Marshal(auth.ResponseBody{
 					ConnectionAuthenticatedMetadata: metadata.ConnectionAuthenticatedMetadata{
 						AuthenticatedUsername:         req.Username,
@@ -75,7 +132,7 @@ func main() {
 					Success: true,
 				})
 				if err != nil {
-					ErrorHandler(w, 500, err.Error())
+					ErrorHandler(r.Context(), w, 500, err.Error())
 					return
 				}
 				w.Write(resp)
@@ -90,7 +147,7 @@ func main() {
 			Success: false,
 		})
 		if err != nil {
-			ErrorHandler(w, 500, err.Error())
+			ErrorHandler(r.Context(), w, 500, err.Error())
 		}
 		w.Write(resp)
 		w.Header().Set("Content-Type", "application/json")
@@ -100,22 +157,23 @@ func main() {
 		var req config.Request
 		err := decoder.Decode(&req)
 		if err != nil {
-			ErrorHandler(w, 500, err.Error())
+			ErrorHandler(r.Context(), w, 500, err.Error())
 		}
 		username, environmentName := SplitUsername(req.Username)
+		escapedUsername := EscapeUsername(username)
 		slog.InfoContext(r.Context(), fmt.Sprintf("Generating config for %s environment %s", username, environmentName))
 		environment := runtime.config.Envrionments[environmentName]
 		environment.Config.Docker.Execution.ContainerConfig.Env = []string{
-			"USERNAME=" + username,
+			"USERNAME=" + escapedUsername,
 			"ENVIRONMENT=" + environmentName,
-			"JWT=" + runtime.jwt.User(username),
+			"JWT=" + runtime.jwt.User(escapedUsername),
 		}
 		// note this assumes the container user is "lab"
 		if environment.Config.Docker.Execution.HostConfig == nil {
 			environment.Config.Docker.Execution.HostConfig = &container.HostConfig{}
 		}
 		environment.Config.Docker.Execution.HostConfig.Binds = append(environment.Config.Docker.Execution.HostConfig.Binds,
-			fmt.Sprintf("lab-%s-%s:/home/lab", environmentName, username),
+			fmt.Sprintf("lab-%s-%s:/home/lab", environmentName, escapedUsername),
 		)
 		if environment.Webhooks.Initialization != "" {
 			runtime.http.Get(environment.Webhooks.Initialization, username)
@@ -128,14 +186,14 @@ func main() {
 			ConnectionAuthenticatedMetadata: metadata.ConnectionAuthenticatedMetadata{
 				AuthenticatedUsername: req.Username,
 				ConnectionAuthPendingMetadata: metadata.ConnectionAuthPendingMetadata{
-					Username:           req.Username,
+					Username:           escapedUsername,
 					ConnectionMetadata: req.ConnectionMetadata,
 				},
 			},
 		}
 		resp, err := json.Marshal(appConfig)
 		if err != nil {
-			ErrorHandler(w, 500, err.Error())
+			ErrorHandler(r.Context(), w, 500, err.Error())
 		}
 		w.Write(resp)
 		w.Header().Set("Content-Type", "application/json")
@@ -147,7 +205,7 @@ func main() {
 		}{}
 		err := decoder.Decode(&req)
 		if err != nil || req.ConnectionId == "" {
-			ErrorHandler(w, 500, err.Error())
+			ErrorHandler(r.Context(), w, 500, err.Error())
 			return
 		}
 		username, err := runtime.redis.Get(r.Context(), "connectionId:"+req.ConnectionId).Result()
@@ -190,5 +248,23 @@ func main() {
 		WriteTimeout: 30 * time.Second,
 		ReadTimeout:  30 * time.Second,
 	}
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		for {
+			s := <-c
+			switch s {
+			case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
+				srv.Shutdown(context.Background())
+				return
+			case syscall.SIGHUP:
+				runtime.ReloadConfig()
+			case syscall.SIGSEGV:
+			default:
+				srv.Shutdown(context.Background())
+				return
+			}
+		}
+	}()
 	srv.ListenAndServe()
 }

@@ -11,7 +11,7 @@ services:
       context: infra/lab-container
       additional_contexts:
         lab: lab
-    image: devinchristianson/k3dlab:4.2.0
+    image: devinchristianson/k3dlab:4.1.0
     user: root
     environment:
       - USERNAME=testuser

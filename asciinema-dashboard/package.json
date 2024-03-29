@@ -2,11 +2,12 @@
   "name": "asciinema-dashboard",
   "version": "1.0.1",
   "description": "",
+  "type": "module",
   "main": "src/backend/index.ts",
   "scripts": {
     "build:frontend": "concurrently 'npm:type-check' 'npm:build-only'",
     "preview": "vite preview",
-    "build-only": "vite build",
+    "build-only": "vite build --mode development",
     "type-check": "vue-tsc --noEmit -p tsconfig.frontend.json --composite false",
     "build:backend": "npx tsc --p tsconfig.backend.json ",
     "build": "concurrently 'npm:build:frontend' 'npm:build:backend'",
@@ -23,7 +24,7 @@
     "@heroicons/vue": "^2.0.18",
     "@types/express": "^4.17.19",
     "@types/express-ws": "^3.0.2",
-    "@types/node": "^20.8.6",
+    "@types/node": "^20.11.25",
     "@vitejs/plugin-vue": "^4.4.0",
     "@vue/tsconfig": "^0.4.0",
     "asciinema-player": "github:devinchristianson/asciinema-player#add-prepare",
@@ -39,13 +40,17 @@
     "vue-tsc": "^1.8.11"
   },
   "dependencies": {
+    "@auth/express": "^0.5.0",
+    "@ctrl/ts-base32": "^3.0.0",
     "@types/tail": "^2.2.1",
+    "bufferutil": "^4.0.8",
     "chokidar": "^3.5.3",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "express-ws": "^5.0.2",
     "tail": "^2.2.6",
+    "totp-generator": "^1.0.0",
     "vue3-popper": "^1.5.0",
+    "ws": "^8.16.0",
     "zod": "^3.22.4"
   }
 }

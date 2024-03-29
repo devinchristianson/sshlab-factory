@@ -1,12 +1,11 @@
 <script setup lang="ts">
   import Player from "./Player.vue";
-  import { getWebsocketLocation } from '../utils';
   import { ref } from "vue";
   import { serverMessageSchema, type clientMessage } from "../../types";
   import { usePlayerStore } from "../store";
-  const sessions = ref<string[]>([]);
+  const streams = ref<string[]>([]);
   const store = usePlayerStore();
-  const ws = new WebSocket(getWebsocketLocation());
+  const ws = new WebSocket(store.getWebSocketLocation());
   ws.onopen = (e) => {
     ws.send(JSON.stringify({
       action: "start",
@@ -23,10 +22,10 @@
     const msg = serverMessageSchema.parse(JSON.parse(e.data));
     switch (msg.action) {
       case "start":
-          sessions.value.push(msg.name);
+          streams.value.push(msg.name);
           break;
       case "end":
-          sessions.value.splice(sessions.value.indexOf(msg.name), 1);
+          streams.value.splice(streams.value.indexOf(msg.name), 1);
           break;
     }
   }
@@ -34,7 +33,7 @@
 
 
 <template>
-    <div :class="`grid grid-cols-4 gap-4 p-4 bg-gray-800 min-h-full`">
-      <Player class="max-h-5 max-w-5" v-for="session in sessions" :log-id="session"/>
+    <div :class="`grid auto-rows-fr grid-cols-${(streams.length == 1 ? 1 : 4 )} w-full gap-4 p-4 grow basis-3/4`">
+      <Player v-for="stream in streams" :log-id="stream"/>
     </div>
 </template>

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -18,10 +19,15 @@ import (
 )
 
 type RunTime struct {
-	config Config
-	redis  *redis.Client
-	jwt    JWTGenerator
-	http   HttpClient
+	configPath string
+	config     Config
+	redis      *redis.Client
+	jwt        JWTGenerator
+	http       HttpClient
+}
+
+func (runtime RunTime) ReloadConfig() {
+	runtime.config.ReadConfig(runtime.configPath)
 }
 
 func Load() RunTime {
@@ -33,7 +39,8 @@ func Load() RunTime {
 		configPath, _ = filepath.Abs("config.yml")
 	}
 	slog.Info(fmt.Sprintf("Using template path %s\n", configPath))
-	runtime.config.ReadConfig(configPath)
+	runtime.configPath = configPath
+	runtime.config.ReadConfig(runtime.configPath)
 	jwtSecret, ok := os.LookupEnv("JWT_SECRET")
 	if !ok {
 		panic("JWT secret is required!")
@@ -64,6 +71,17 @@ func Load() RunTime {
 	}
 
 	return runtime
+}
+
+func (runtime *RunTime) RegisterConnection(ctx context.Context, Username string, ConnectionID string) {
+	err := runtime.redis.Set(ctx, "connectionId:"+ConnectionID, Username, 0).Err()
+	if err != nil {
+		slog.ErrorContext(ctx, "Error setting connectionId->username in redis: "+err.Error())
+	}
+	err = runtime.redis.RPush(ctx, "user:"+Username, ConnectionID).Err()
+	if err != nil {
+		slog.ErrorContext(ctx, "Error adding username->connectionId in redis: "+err.Error())
+	}
 }
 
 type Config struct {
@@ -143,7 +161,8 @@ func (client *HttpClient) Get(url WebHook, username string) (*http.Response, err
 	if time.Now().After(client.tokenEpiry) {
 		client.token = client.renewToken()
 	}
-	initReq, err := http.NewRequest("GET", strings.Replace(string(url), "$username", username, -1), nil)
+	escapedUsername := EscapeUsername(username)
+	initReq, err := http.NewRequest("GET", strings.Replace(string(url), "$username", escapedUsername, -1), nil)
 	initReq.Header.Set("Authorization", "Bearer "+client.token)
 	if err != nil {
 		panic(err.Error())
@@ -153,8 +172,9 @@ func (client *HttpClient) Get(url WebHook, username string) (*http.Response, err
 
 func (client *HttpClient) MapWebhooksToValues(input map[string]WebHook, username string) map[string]metadata.Value {
 	results := make(map[string]metadata.Value)
+	escapedUsername := EscapeUsername(username)
 	for key, url := range input {
-		resp, err := client.Get(url, username)
+		resp, err := client.Get(url, escapedUsername)
 		if err != nil {
 			slog.Warn(fmt.Sprintf("Failed getting %s %s due to error %s", key, url, err.Error()))
 			continue

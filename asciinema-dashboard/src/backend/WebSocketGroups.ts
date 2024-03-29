@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws'
-import { type clientConfig } from "../types"
+import { type clientConfig } from "../types.js"
 
 type WebSocketClient = {
   ws: WebSocket,

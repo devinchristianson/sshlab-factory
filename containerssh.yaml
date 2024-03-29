@@ -17,6 +17,10 @@ auth:
     method: webhook
     webhook:
       url: http://authconfig:7080/auth
+  password:
+    method: webhook
+    webhook:
+      url: http://authconfig:7080/auth
 configserver:
   url: "http://authconfig:7080/config"
   timeout: "30s"
@@ -36,10 +40,12 @@ docker:
 audit:
   enable: true
   format: asciinema
-  storage: file        # Where to write audit log. Defaults to none.
+  storage: socket        # Where to write audit log. Defaults to none.
   intercept:
     stdin: true
     stdout: true
     stderr: true
-  file: 
-    directory: /var/log/containerssh
+  socket:
+# sudo socat -t100 UNIX-LISTEN:/var/lib/docker/volumes/ssh-lab-factory_asciinema-socket/_data/benthos.sock,mode=777,reuseaddr,fork STDOUT
+    address: /var/run/asciinema/benthos.sock
+    type: unix

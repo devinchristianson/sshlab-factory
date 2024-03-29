@@ -20,6 +20,15 @@ export const usePlayerStore = defineStore('player', {
                 this.fastforward=false
             }
         },
+        getWebSocketLocation(logId="") {
+            let params = ""
+            if (logId) {
+                params = "?" + Object.keys(this.$state).map((key) => {
+                    return key + '=' + encodeURIComponent(this.$state[key as keyof typeof this.$state]);
+                  }).join('&');
+            }
+            return `${window.location.origin.replace(/^http/, "ws")}/ws/${logId}${params}`
+        },
         resetPlayers() {
             console.log("resetting all streams")
         }
