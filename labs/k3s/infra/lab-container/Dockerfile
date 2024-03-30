@@ -35,9 +35,9 @@ RUN rm -r /tmp/*
 # download and install k9s
 RUN set -e && cd "$(mktemp -d)" && VERSION="$(wget https://github.com/derailed/k9s/releases/latest --server-response -O /dev/null 2>&1 | awk '/^\s*Location: /{DEST=$2} END{ print DEST}' | grep -oE '[^/]+$')" \
     && ARCH=$(dpkg --print-architecture) \
-    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_$ARCH.tar.gz \
+    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_${ARCH}.tar.gz \
     && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/checksums.sha256 \
-    && echo "$(cat checksums.sha256 | grep k9s_Linux_$ARCH.tar.gz$ | awk '{ print $1 }') k9s_Linux_amd64.tar.gz" | sha256sum -c \
+    && echo "$(cat checksums.sha256 | grep k9s_Linux_$ARCH.tar.gz$ | awk '{ print $1 }') k9s_Linux_$ARCH.tar.gz" | sha256sum -c \
     && tar -zxvf "k9s_Linux_$ARCH.tar.gz" \
     && install -o root -g root -m 0755 k9s /usr/local/bin/k9s
 
