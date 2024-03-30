@@ -12,18 +12,20 @@ RUN DEBIAN_FRONTEND=noninteractive apt update \
 
 # download and install kubectl
 RUN set -e && cd "$(mktemp -d)" && VERSION="$(curl -L -s https://dl.k8s.io/release/stable.txt)" \
-    && curl -LO "https://dl.k8s.io/release/$VERSION/bin/linux/amd64/kubectl" \
-    && curl -LO "https://dl.k8s.io/$VERSION/bin/linux/amd64/kubectl.sha256" \
+    && ARCH=$(dpkg --print-architecture) \
+    && curl -LO "https://dl.k8s.io/release/$VERSION/bin/linux/$ARCH/kubectl" \
+    && curl -LO "https://dl.k8s.io/$VERSION/bin/linux/$ARCH/kubectl.sha256" \
     && echo "$(cat kubectl.sha256)  kubectl" | sha256sum -c \
     && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
 # download and install helm
 RUN set -e && cd "$(mktemp -d)" && VERSION="$(curl -L -s https://get.helm.sh/helm-latest-version)" \
-    && curl -LO "https://get.helm.sh/helm-$VERSION-linux-amd64.tar.gz" \ 
-    && curl -LO "https://get.helm.sh/helm-$VERSION-linux-amd64.tar.gz.sha256sum" \
-    && echo "$(cat helm-$VERSION-linux-amd64.tar.gz.sha256sum | awk '{ print $1 }')  helm-$VERSION-linux-amd64.tar.gz" | sha256sum -c \
-    && tar -zxvf "helm-$VERSION-linux-amd64.tar.gz" \
-    && install -o root -g root -m 0755 linux-amd64/helm /usr/local/bin/helm
+    && ARCH=$(dpkg --print-architecture) \
+    && curl -LO "https://get.helm.sh/helm-$VERSION-linux-$ARCH.tar.gz" \ 
+    && curl -LO "https://get.helm.sh/helm-$VERSION-linux-$ARCH.tar.gz.sha256sum" \
+    && echo "$(cat helm-$VERSION-linux-$ARCH.tar.gz.sha256sum | awk '{ print $1 }')  helm-$VERSION-linux-$ARCH.tar.gz" | sha256sum -c \
+    && tar -zxvf "helm-$VERSION-linux-$ARCH.tar.gz" \
+    && install -o root -g root -m 0755 linux-$ARCH/helm /usr/local/bin/helm
 
 # add helm-diff
 RUN helm plugin install https://github.com/databus23/helm-diff && rm -rf /tmp/helm-*
@@ -32,10 +34,11 @@ RUN rm -r /tmp/*
 
 # download and install k9s
 RUN set -e && cd "$(mktemp -d)" && VERSION="$(wget https://github.com/derailed/k9s/releases/latest --server-response -O /dev/null 2>&1 | awk '/^\s*Location: /{DEST=$2} END{ print DEST}' | grep -oE '[^/]+$')" \
-    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_amd64.tar.gz \
+    && ARCH=$(dpkg --print-architecture) \
+    && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/k9s_Linux_$ARCH.tar.gz \
     && curl -LO https://github.com/derailed/k9s/releases/download/$VERSION/checksums.sha256 \
-    && echo "$(cat checksums.sha256 | grep k9s_Linux_amd64.tar.gz$ | awk '{ print $1 }') k9s_Linux_amd64.tar.gz" | sha256sum -c \
-    && tar -zxvf "k9s_Linux_amd64.tar.gz" \
+    && echo "$(cat checksums.sha256 | grep k9s_Linux_$ARCH.tar.gz$ | awk '{ print $1 }') k9s_Linux_amd64.tar.gz" | sha256sum -c \
+    && tar -zxvf "k9s_Linux_$ARCH.tar.gz" \
     && install -o root -g root -m 0755 k9s /usr/local/bin/k9s
 
 # copy over scripts + make executable
