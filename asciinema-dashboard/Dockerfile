@@ -18,6 +18,16 @@ RUN apk add --no-cache gcc musl-dev
 # set workdir to something reasonable
 WORKDIR /home/node/
 COPY package*.json .
+
+# build our own wasm-bindgen-cli and trick rust rollup plugin to use it due to issues with
+# the ARM version of wasm-bindgen-cli on Alpine (dynamically links to non-existent libs)
+# note that the wasm-bindgen version needs to be the same as the one in 
+# https://github.com/devinchristianson/asciinema-player/blob/develop/src/vt/Cargo.toml
+RUN WASM_BINDGEN_VERSION="0.2.84" && apk add git openssl-dev build-base \
+    && RUSTFLAGS='-C target-feature=-crt-static' cargo install -f wasm-bindgen-cli --version $WASM_BINDGEN_VERSION \
+    && mkdir -p /root/.cache/rollup-plugin-rust/wasm-bindgen-${WASM_BINDGEN_VERSION}-aarch64-unknown-linux-gnu/ \
+    && ln /usr/local/cargo/bin/wasm-bindgen /root/.cache/rollup-plugin-rust/wasm-bindgen-${WASM_BINDGEN_VERSION}-aarch64-unknown-linux-gnu/wasm-bindgen
+
 # running install & build
 RUN npm ci
 
