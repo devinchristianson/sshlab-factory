@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { ArrowPathIcon,ForwardIcon,TrashIcon } from '@heroicons/vue/24/solid';
     import { usePlayerStore } from '../store';
-    import SignIn from './SignIn.vue';
+    import Session from './Session.vue';
     const store = usePlayerStore();
 </script>
 <template>
@@ -16,7 +16,16 @@
             <Popper content="Include exited sessions?" hover>
                 <TrashIcon @click="store.toggleIncludeExited" :class="['h-6', 'w-6','cursor-pointer',  (store.$state.includeExited ? 'text-blue-500' : 'text-gray-500')]"/>
             </Popper>
+            <router-link to="/">
+              Home
+            </router-link>
+            <router-link to="/intro">
+              About
+            </router-link>
+            <router-link to="/wiki/index.md">
+              Wiki
+            </router-link>
         </div>
-        <SignIn/>
+        <Session/>
     </div>
 </template>

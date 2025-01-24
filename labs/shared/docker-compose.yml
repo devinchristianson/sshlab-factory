@@ -1,0 +1,25 @@
+x-client-defaults: &client-defaults
+  environment:
+    - USERNAME=testuser
+    - ENVIRONMENT=ubuntu
+    - DOMAIN=localhost
+    - DEV=1
+  stop_grace_period: 20s
+  profiles:
+    - lab-client
+
+services:
+  ubuntu-lab:
+    build: 
+      context: .
+      target: ubuntu-systemd
+    image: devinchristianson/ubuntu:0.1.1
+    <<: *client-defaults
+  docker-lab:
+    build: 
+      context: .
+      target: ubuntu-systemd-docker
+      additional_contexts:
+        docker: ../docker/
+    image: devinchristianson/docker:0.1.1
+    <<: *client-defaults

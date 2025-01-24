@@ -33,3 +33,17 @@ If the user is on the allowlist for the requested environment and the provided k
 - Build lab clients with `docker compose --profile lab-client build`
 - Build other required containers `docker compose build`
 - Bring up the stack with `docker compose up`
+
+
+## Development usage
+### Pre-requisites
+- docker
+- docker compose plugin
+- entry in `/etc/hosts` for `127.0.0.1 *.localhost`
+### Run
+1. Bring up supporting containers with `docker compose up -d`
+2. Open shell in labcontainer with `docker-compose run -it --build labcontainer`
+### Build
+1. Bump image version number in docker compose
+2. `docker compose build labcontainer`
+3. `docker compose push labcontainer`

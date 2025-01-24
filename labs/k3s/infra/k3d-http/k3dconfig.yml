@@ -8,6 +8,18 @@ network: ssh-lab-factory_k3s
 kubeAPI: # same as `--api-port myhost.my.domain:6445` (where the name would resolve to 127.0.0.1)
   host: "k3d-{{ .username }}-server-0:6443" # important for the `server` setting in the kubeconfig
   hostIP: "127.0.0.1" # where the Kubernetes API will be listening on
+extraArgs:
+  - arg: "--tls-san={{ .username }}.{{ .domain }}"
+    nodeFilters:
+      - server:*
+registries:
+  use:
+    - ssh-lab-factory-registry-1:5000
+  config: |
+    mirrors:
+      "registry-1.docker.io":
+        endpoint:
+          - http://ssh-lab-factory-registry-1:5000
 options:
   runtime:
     labels:

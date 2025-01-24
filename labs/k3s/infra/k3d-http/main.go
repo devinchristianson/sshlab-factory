@@ -69,12 +69,14 @@ func main() {
 	mux.Handle("GET /{name}/cluster/stop", UseWithMiddlewares(func(w http.ResponseWriter, r *http.Request) {
 		clusterName := r.PathValue("name")
 		cluster := GetCluster(w, r, clusterName)
-		err := k3d.ClusterStop(r.Context(), runtimes.Docker, cluster)
-		if err != nil {
-			ErrorHandler(w, r, 500, err.Error())
-			return
+		if cluster != nil {
+			err := k3d.ClusterStop(r.Context(), runtimes.Docker, cluster)
+			if err != nil {
+				ErrorHandler(w, r, 500, err.Error())
+				return
+			}
+			SuccessHandler(w, r, "Cluster has been stopped")
 		}
-		SuccessHandler(w, r, "Cluster has been stopped")
 	}))
 	mux.Handle("GET /{name}/cluster/config", UseWithMiddlewares(func(w http.ResponseWriter, r *http.Request) {
 		config, err := k3d.KubeconfigGet(r.Context(), runtimes.Docker, &types.Cluster{Name: r.PathValue("name")})

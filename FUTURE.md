@@ -12,3 +12,7 @@
     - use benthos to ingest log files into redis streams or similar, allowing for synchronized replaying & streaming
 - metrics collection:
     - use https://github.com/prometheus/prometheus/blob/release-2.33/documentation/examples/prometheus-docker.yml to configure and collect 
+
+
+## UX improvements
+- built in web access with javascript libs SSH2 and XTerm.js (see https://github.com/WMRamadan/ssh-browser-client for reference)

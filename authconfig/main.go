@@ -172,14 +172,21 @@ func main() {
 		if environment.Config.Docker.Execution.HostConfig == nil {
 			environment.Config.Docker.Execution.HostConfig = &container.HostConfig{}
 		}
+		templateVariables := TemplateVariables{
+			Username: escapedUsername,
+			Domain:   environmentName + runtime.domain,
+		}
+		if environment.Config.Docker.Execution.ContainerConfig.Labels != nil {
+			environment.Config.Docker.Execution.ContainerConfig.Labels = MapVariables(environment.Config.Docker.Execution.ContainerConfig.Labels, templateVariables)
+		}
 		environment.Config.Docker.Execution.HostConfig.Binds = append(environment.Config.Docker.Execution.HostConfig.Binds,
 			fmt.Sprintf("lab-%s-%s:/home/lab", environmentName, escapedUsername),
 		)
 		if environment.Webhooks.Initialization != "" {
-			runtime.http.Get(environment.Webhooks.Initialization, username)
+			runtime.http.Get(environment.Webhooks.Initialization, templateVariables)
 		}
-		req.ConnectionMetadata.Files = ConvertValuesToBinaryValues(runtime.http.MapWebhooksToValues(environment.Webhooks.Files, username))
-		req.ConnectionMetadata.Environment = runtime.http.MapWebhooksToValues(environment.Webhooks.Environment, username)
+		req.ConnectionMetadata.Files = ConvertValuesToBinaryValues(runtime.http.MapWebhooksToValues(environment.Webhooks.Files, templateVariables))
+		req.ConnectionMetadata.Environment = runtime.http.MapWebhooksToValues(environment.Webhooks.Environment, templateVariables)
 		// holy embedding batman 🤮
 		appConfig := config.ResponseBody{
 			Config: environment.Config,
@@ -230,8 +237,11 @@ func main() {
 			baseUsername, environmentName := SplitUsername(username)
 			environment := runtime.config.Envrionments[environmentName]
 			if environment.Webhooks.Cleanup != "" {
+				templateVariables := TemplateVariables{
+					Username: EscapeUsername(baseUsername),
+				}
 				slog.Info(fmt.Sprintf("Cleaning up %s environment %s", baseUsername, environmentName))
-				runtime.http.Get(environment.Webhooks.Cleanup, baseUsername)
+				runtime.http.Get(environment.Webhooks.Cleanup, templateVariables)
 			}
 		}
 	})

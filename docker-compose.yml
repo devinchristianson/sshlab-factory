@@ -1,6 +1,6 @@
-include: 
+include:
   - path: labs/k3s/docker-compose.yml
-  - path: labs/ubuntu/docker-compose.yml
+  - path: labs/shared/docker-compose.yml
 
 x-infra-defaults: &infra-defaults
   networks:
@@ -32,7 +32,10 @@ services:
     ports: 
       - 6379:6379
   dashboard:
-    <<: *infra-defaults
+    networks:
+      - internal
+    profiles:
+      - dashboard
     build: ./asciinema-dashboard
     environment:
       AUTH_GITHUB_ID: "${AUTH_GITHUB_ID}"
@@ -41,28 +44,106 @@ services:
       AUTH_SECRET: "${AUTH_SECRET}"
       SRC_LOG_DIR: /tmp/logs
       PORT: 3000
+      REDIS_HOST: "redis"
+      REDIS_PASS: "${REDIS_PASS}"
+      ADMINS: ""
     volumes: 
       - logs:/tmp/logs
-    ports: 
-      - 3000:3000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dash.rule=Host(`${DOMAIN}`)"
   containerssh:
     <<: *infra-defaults
+    runtime: runc
     build: ./containerssh
     image: devinchristianson/containerssh:0.5.1 #containerssh/containerssh:0.5.0-alpha.1-20240107
     ports:
-      - 2222:2222
+      - 22:2222
       - 7000:7000
     volumes:
-      - ./containerssh.yaml:/config.yaml
+      - ./containerssh.yaml:/etc/containerssh/config.yaml
       - ./ssh_host_rsa_key:/var/secrets/ssh_host_rsa_key
       - /var/run/docker.sock:/var/run/docker.sock
-      - logs:/var/log/containerssh
+      - logs:/var/log/audit
     user: "root"
     depends_on: 
       - authconfig
+  registry:
+    runtime: runc
+    profiles:
+      - k3s
+      - docker
+    image: docker.io/library/registry:2
+    volumes: 
+      - registry:/var/lib/registry
+    networks:
+      - k3s
+      - docker
+    ports:
+      - 5000:5000
+    environment:
+      REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io
+    labels:
+      app: "k3d"
+      k3d.registry.host: ""
+      k3d.registry.hostIP: "0.0.0.0"
+      k3d.role: "registry"
+      k3s.registry.port.external: "5000"
+      k3s.registry.port.internal: "5000"
+  traefik:
+    profiles:
+      - k3s
+    runtime: runc
+    image: "traefik:v2.10"
+    command:
+      - "--log.level=DEBUG"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.websecure.http.tls=true"
+      - "--entrypoints.kubeapi.address=:6443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "6443:6443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - internal
+      - k3s
+    depends_on:
+      - error-pages
+  error-pages:
+    profiles:
+      - k3s
+    image: tarampampam/error-pages:2.26.0
+    environment:
+      TEMPLATE_NAME: l7-dark # set the error pages template
+    labels:
+      traefik.enable: true
+      # use as "fallback" for any NON-registered services (with priority below normal)
+      traefik.http.routers.error-pages-router.rule: HostRegexp(`{host:.+}`)
+      traefik.http.routers.error-pages-router.priority: 10
+      # should say that all of your services work on https
+      traefik.http.routers.error-pages-router.entrypoints: web
+      traefik.http.routers.error-pages-router.middlewares: error-pages-middleware
+      # "errors" middleware settings
+      traefik.http.middlewares.error-pages-middleware.errors.status: 400-599
+      traefik.http.middlewares.error-pages-middleware.errors.service: error-pages-service
+      traefik.http.middlewares.error-pages-middleware.errors.query: /{status}.html
+      # define service properties
+      traefik.http.services.error-pages-service.loadbalancer.server.port: 8080
+    networks:
+      - internal
 volumes:
   logs: {}
+  registry: {}
 networks:
   internal: 
   k3s:
-    
+  ubuntu:
+  docker:
+

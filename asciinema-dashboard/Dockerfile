@@ -1,8 +1,8 @@
 # as of right now we need to build the dependency ascinema-player from scratch and unforunately it's WASM
 
 # pulling in Rust build tools from a pre-build image to keep things simple
-FROM rust:alpine as rust
-FROM node:lts-alpine as builder
+FROM rust:alpine AS rust
+FROM node:lts-alpine AS builder
 COPY --from=rust /usr/local/cargo /usr/local/cargo
 COPY --from=rust /usr/local/rustup /usr/local/rustup
 ENV RUSTUP_HOME=/usr/local/rustup \
@@ -50,5 +50,5 @@ COPY --from=builder /home/node/node_modules/ ./node_modules
 COPY --from=builder /home/node/package.json .
 
 ENV NODE_ENV=production
-EXPOSE 3001
+EXPOSE 3000
 CMD ["/home/node/backend/index.js"]

@@ -1,4 +1,4 @@
-FROM golang:1.22.0 as builder
+FROM golang:1.22.0 AS builder
 
 WORKDIR /app
 
@@ -12,6 +12,5 @@ FROM scratch
 # simplest way to get a /tmp dir in a from scratch container
 COPY --from=builder /tmp /tmp 
 COPY --from=builder /app/bin/main /app
-COPY ./k3dconfig.yml /config.yml
 EXPOSE 8090
 CMD ["/app"]

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
+	"text/template"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -24,6 +25,7 @@ type RunTime struct {
 	redis      *redis.Client
 	jwt        JWTGenerator
 	http       HttpClient
+	domain     string
 }
 
 func (runtime RunTime) ReloadConfig() {
@@ -44,6 +46,11 @@ func Load() RunTime {
 	jwtSecret, ok := os.LookupEnv("JWT_SECRET")
 	if !ok {
 		panic("JWT secret is required!")
+	}
+
+	runtime.domain, ok = os.LookupEnv("DOMAIN")
+	if !ok {
+		runtime.domain = "localhost"
 	}
 
 	runtime.jwt = JWTGenerator{
@@ -157,12 +164,19 @@ type HttpClient struct {
 	renewToken func() string
 }
 
-func (client *HttpClient) Get(url WebHook, username string) (*http.Response, error) {
+type TemplateVariables struct {
+	Username string
+	Domain   string
+}
+
+func (client *HttpClient) Get(url WebHook, variables TemplateVariables) (*http.Response, error) {
 	if time.Now().After(client.tokenEpiry) {
 		client.token = client.renewToken()
 	}
-	escapedUsername := EscapeUsername(username)
-	initReq, err := http.NewRequest("GET", strings.Replace(string(url), "$username", escapedUsername, -1), nil)
+	var buf bytes.Buffer
+	template.Must(template.New("key").Parse(string(url))).Execute(&buf, variables)
+	templatedUrl := buf.String()
+	initReq, err := http.NewRequest("GET", templatedUrl, nil)
 	initReq.Header.Set("Authorization", "Bearer "+client.token)
 	if err != nil {
 		panic(err.Error())
@@ -170,11 +184,10 @@ func (client *HttpClient) Get(url WebHook, username string) (*http.Response, err
 	return client.client.Do(initReq)
 }
 
-func (client *HttpClient) MapWebhooksToValues(input map[string]WebHook, username string) map[string]metadata.Value {
+func (client *HttpClient) MapWebhooksToValues(input map[string]WebHook, variables TemplateVariables) map[string]metadata.Value {
 	results := make(map[string]metadata.Value)
-	escapedUsername := EscapeUsername(username)
 	for key, url := range input {
-		resp, err := client.Get(url, escapedUsername)
+		resp, err := client.Get(url, variables)
 		if err != nil {
 			slog.Warn(fmt.Sprintf("Failed getting %s %s due to error %s", key, url, err.Error()))
 			continue
@@ -190,4 +203,18 @@ func (client *HttpClient) MapWebhooksToValues(input map[string]WebHook, username
 		}
 	}
 	return results
+}
+
+func MapVariables(input map[string]string, variables TemplateVariables) map[string]string {
+	output := map[string]string{}
+	for key, value := range input {
+		var buf bytes.Buffer
+		template.Must(template.New("key").Parse(key)).Execute(&buf, variables)
+		templatedKey := buf.String()
+		buf.Reset()
+		template.Must(template.New("value").Parse(value)).Execute(&buf, variables)
+		templatedValue := buf.String()
+		output[templatedKey] = templatedValue
+	}
+	return output
 }

@@ -1,14 +1,15 @@
-import { getSession } from "@auth/express"
+import { getSession, Session } from "@auth/express"
 import { NextFunction, Request, Response } from "express"
+import { GitHubProfile } from "@auth/express/providers/github"
 import { authConfig } from "./auth.config.js"
+import type { Response as ResponseType } from "express"
 
 export async function authenticatedUser(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
-  const session = res.locals.session ?? (await getSession(req, authConfig))
-  
+  const session: GitHubProfile = res.locals.session ?? (await getSession(req, authConfig))
   if (session) {
     console.log("authenticated", req.path)
     res.locals.session = session
@@ -26,7 +27,7 @@ export async function useSession(
   res: Response,
   next: NextFunction,
 ) {
-  const session = res.locals.session ?? (await getSession(req, authConfig))
+  const session: GitHubProfile = res.locals.session ?? (await getSession(req, authConfig))
   
   if (session) {
     res.locals.session = session
@@ -34,4 +35,8 @@ export async function useSession(
   } else {
     return next()
   }
+}
+
+export function useUsername(res: ResponseType) {
+  return (res.locals.session as Session | undefined)?.user?.email
 }

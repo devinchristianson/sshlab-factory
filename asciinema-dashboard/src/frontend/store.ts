@@ -1,41 +1,59 @@
-import { acceptHMRUpdate, defineStore } from 'pinia'
+import { create } from 'zustand'
+import { devtools, persist, subscribeWithSelector } from 'zustand/middleware'
+import type {} from '@redux-devtools/extension' // required for devtools typing
 
-// You can name the return value of `defineStore()` anything you want,
-// but it's best to use the name of the store and surround it with `use`
-// and `Store` (e.g. `useUserStore`, `useCartStore`, `useProductStore`)
-// the first argument is a unique id of the store across your application
-export const usePlayerStore = defineStore('player', {
-    state: () => ({
+interface PlayerState {
+  fastforward: boolean
+  includeExited: boolean
+  resetCounter: number,
+  toggleFastForward: () => void
+  toggleIncludeExited: () => void
+  getWebSocketLocation: (logId?: string) => string
+  resetPlayers: () => void
+}
+
+export const usePlayerStore = create<PlayerState>()(
+  subscribeWithSelector(devtools(
+    persist(
+      (set, get) => ({
         fastforward: true,
-        includeExited: false
-    }),
-    actions: {
+        includeExited: false,
+        resetCounter: 0,
         toggleFastForward() {
-            this.fastforward = !this.fastforward
-            this.resetPlayers();
+            set((state) => ({fastforward: !state.fastforward}));
+            get().resetPlayers()
         },
         toggleIncludeExited() {
-            this.includeExited = !this.includeExited
-            if (this.includeExited) {
-                this.fastforward=false
-            }
+            set((state) => {
+                return {
+                    includeExited: !state.includeExited,
+                    fastforward: (!state.includeExited ? false : state.fastforward)
+                }
+            });
         },
         getWebSocketLocation(logId="") {
             let params = ""
             if (logId) {
-                params = "?" + Object.keys(this.$state).map((key) => {
-                    return key + '=' + encodeURIComponent(this.$state[key as keyof typeof this.$state]);
+                params = "?" + Object.keys(['fastforward', 'includeExited']).map((key) => {
+                    return key + '=' + encodeURIComponent(get()[key as keyof PlayerState] as string | number | boolean);
                   }).join('&');
             }
             return `${window.location.origin.replace(/^http/, "ws")}/ws/${logId}${params}`
         },
         resetPlayers() {
-            console.log("resetting all streams")
+          set((state) => ({resetCounter: state.resetCounter + 1}));
         }
-    }
-})
+      }),
+      {
+        name: 'bear-storage',
+      },
+    ),
+  ),
+));
 
-
-if (import.meta.hot) {
-    import.meta.hot.accept(acceptHMRUpdate(usePlayerStore, import.meta.hot))
+export function extractPlayerValues({fastforward, includeExited}: PlayerState) {
+  return {
+    fastforward,
+    includeExited
   }
+}

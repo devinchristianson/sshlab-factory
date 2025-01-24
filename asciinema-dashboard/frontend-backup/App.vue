@@ -1,12 +1,12 @@
 <script setup lang="ts">
+  import { RouterView } from "vue-router";
   import ToolBar from "./components/ToolBar.vue";
-  import Grid from "./components/Grid.vue";
 </script>
 
 
 <template>
-    <div class="min-h-full flex flex-col bg-gray-800">
+  <div class="min-h-full flex flex-col bg-gray-800">
       <ToolBar/>
-      <Grid/>
+      <RouterView/>
     </div>
 </template>

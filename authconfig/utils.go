@@ -10,7 +10,11 @@ import (
 
 func SplitUsername(s string) (string, string) {
 	r := strings.Split(s, "/")
-	return r[0], r[1]
+	if len(r) == 2 {
+		return r[0], r[1]
+	} else {
+		return r[0], ""
+	}
 }
 
 func ConvertValuesToBinaryValues(input map[string]metadata.Value) map[string]metadata.BinaryValue {

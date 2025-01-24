@@ -1,4 +1,11 @@
-FROM containerssh/agent AS agent
+# build containerssh agent from source to support ARM
+FROM golang:1.21 as agent
+WORKDIR /app
+RUN git clone https://github.com/ContainerSSH/agent
+WORKDIR /app/agent
+RUN go mod tidy
+RUN go generate
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o /usr/bin/containerssh-agent
 
 FROM ubuntu:22.04
 
@@ -7,7 +14,7 @@ COPY --from=agent /usr/bin/containerssh-agent /usr/bin/containerssh-agent
 
 # add pre-reqs for required installs
 RUN DEBIAN_FRONTEND=noninteractive apt update \
-    && apt install -y curl bash jq git net-tools vim tmux bash-completion wget sudo \
+    && apt install -y curl bash jq git net-tools vim tmux bash-completion wget sudo iproute2 iputils-ping \
     && apt clean
 
 # download and install kubectl

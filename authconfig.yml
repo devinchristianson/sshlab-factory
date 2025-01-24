@@ -18,21 +18,43 @@ environments:
     config:
       docker:
         execution:
+          idleCommand: ["/sbin/init", "--log-level=err"]
+          shellCommand: ["/usr/bin/su", "-w", "USERNAME,ENVIRONMENT", "-", "lab" ]
           container:
-            image: ssh-lab-factory-ubuntu-lab
+            image: devinchristianson/ubuntu:0.1.1
+          host:
+            runtime: sysbox-runc
+  docker:
+    config:
+      docker:
+        execution:
+          idleCommand: ["/sbin/init", "--log-level=err"]
+          shellCommand: ["/usr/bin/su", "-w", "USERNAME,ENVIRONMENT", "-", "lab" ]
+          container:
+            image: devinchristianson/docker:0.1.1
+            labels:
+              traefik.enable: true
+              traefik.http.routers.{{ .Username }}-web.rule: HostRegexp(`{subdomain:([a-z-]+.)*}{{ .Username }}.{{ .Domain }}`)
+              traefik.http.routers.{{ .Username }}-web.entrypoints: web
+              traefik.http.services.{{ .Username }}-web.loadbalancer.server.port: 80
+              traefik.http.routers.{{ .Username }}-web.service: "{{ .Username }}-web"
+              traefik.tcp.routers.{{ .Username }}-websecure.rule: HostSNIRegexp(`{subdomain:([a-z-]+.)*}{{ .Username }}.{{ .Domain }}`)
+              traefik.tcp.routers.{{ .Username }}-websecure.entrypoints: websecure
+              traefik.tcp.services.{{ .Username }}-websecure.loadbalancer.server.port: 443
+              traefik.tcp.routers.{{ .Username }}-websecure.service={{ .Username }}: websecure
+          host:
+            runtime: sysbox-runc
   k3s:
     config:
       docker:
         execution:
           container:
             image: devinchristianson/k3dlab:4.2.0
-            env:
-              - DOMAIN=localhost
           network:
             endpointsconfig:
               ssh-lab-factory_k3s: {} # start in the same network as the cluster
     webhooks:
-      initialization: http://k3d-http:8090/$username/cluster/ensurerunning
-      cleanup: http://k3d-http:8090/$username/cluster/stop
+      initialization: http://k3d-http:8090/{{ .Username }}/cluster/ensurerunning
+      cleanup: http://k3d-http:8090/{{ .Username }}/cluster/stop
       files: 
-        /home/lab/.kube/config: http://k3d-http:8090/$username/cluster/config
+        /home/lab/.kube/config: http://k3d-http:8090/{{ .Username }}/cluster/config

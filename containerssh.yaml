@@ -35,17 +35,11 @@ docker:
     disableAgent: false
   connection:
     host: unix:///var/run/docker.sock
-# it's possible to watch a 40s delay asciinema with
-# tail -n +1 -f /tmp/logs/<log_file_name> | websocat -t -s 8080
 audit:
   enable: true
   format: asciinema
-  storage: socket        # Where to write audit log. Defaults to none.
+  storage: file
   intercept:
     stdin: true
     stdout: true
     stderr: true
-  socket:
-# sudo socat -t100 UNIX-LISTEN:/var/lib/docker/volumes/ssh-lab-factory_asciinema-socket/_data/benthos.sock,mode=777,reuseaddr,fork STDOUT
-    address: /var/run/asciinema/benthos.sock
-    type: unix

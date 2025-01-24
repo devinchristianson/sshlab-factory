@@ -2,7 +2,6 @@ go 1.22.0
 
 use (
 	./authconfig
-	./benthos
 	./containerssh
 	./labs/k3s/infra/k3d-http
 )
